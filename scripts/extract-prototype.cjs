@@ -1,0 +1,9 @@
+const fs = require('fs'); const vm = require('vm');
+const source = fs.readFileSync(process.argv[2], 'utf8');
+function literal(name, end) { const start = source.indexOf('const ' + name + '=') >= 0 ? source.indexOf('const ' + name + '=') : source.indexOf('const ' + name + ' ='); const text = source.slice(start, source.indexOf(end, start) + end.length); return vm.runInNewContext(text + '; ' + name, Object.create(null), {timeout: 1000}); }
+const lists = literal('LIST', '];'); const quotes = literal('QUOTES', '];'); const news = literal('NEWS', '];'); const shops = literal('SHOPS','};');
+const listings = lists.map((x,i)=>({id:String(1000+i),type:x.t,category:x.cat,name:x.name,emoji:x.emoji,price:x.price,unit:x.unit,extra:x.extra,verified:!!x.verified,views:x.views,...(x.shop?{shop:x.shop}:{}),city:i%2?'上海':'深圳',condition:x.extra.split(' · ')[0],description:x.extra+'。支持线下核验，具体配置、保修与交付安排请联系平台对接。',quantity:i===0?8:1,createdAt:'2026-10-22T10:00:00+08:00',status:'show'}));
+const market = quotes.map(x=>({id:x.code,name:x.name,code:x.code,kind:x.kind,price:x.price,change:x.chg,percent:x.pct,high:x.hi,low:x.lo,heat:x.hot,volatility:x.vol,...(x.isIdx?{isIndex:true}:{})}));
+const articles = news.map((x,i)=>({id:String(i+1),icon:x.ic,category:x.cat,title:x.t,time:x.time,source:x.src,views:x.views,paragraphs:x.body.flat()}));
+const merchants=Object.entries(shops).map(([id,x])=>({id,name:x.name,type:x.type==='ent'?'enterprise':'personal',emoji:x.emoji,fans:x.fans,days:x.days,score:x.score,description:x.quote}));
+fs.writeFileSync('src/services/fixtures.ts', "import type { Listing, Quote, Article, Shop } from '../types'\n\n// 原型演示数据，不代表实时行情或真实商家。\n" + [['listings','Listing',listings],['quotes','Quote',market],['articles','Article',articles],['shops','Shop',merchants]].map(([name,type,data])=>`export const ${name}: ${type}[] = ${JSON.stringify(data,null,2)}\n`).join('\n'));

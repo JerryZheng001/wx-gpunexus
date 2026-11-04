@@ -1,0 +1,14 @@
+node_modules/
+dist/
+dist-h5/
+.npm-cache/
+.DS_Store
+output/
+*.log
+project.private.config.json
+.playwright-cli/
+.swc/
+.env
+.env.*
+!.env.example
+docs/project.private.config.original.json

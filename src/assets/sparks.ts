@@ -1,0 +1,42 @@
+import GPUIDX1 from './GPUIDX1.png'
+import GPUIDX2 from './GPUIDX2.png'
+import NV309024T from './NV309024T.png'
+import NV409024T from './NV409024T.png'
+import NV409048M from './NV409048M.png'
+import NV509032 from './NV509032.png'
+import NVA10080P from './NVA10080P.png'
+import NVA80080S from './NVA80080S.png'
+import NVH10080S from './NVH10080S.png'
+import NVH80080S from './NVH80080S.png'
+import NVL40S48P from './NVL40S48P.png'
+import SV30908 from './SV30908.png'
+import SV4090488 from './SV4090488.png'
+import SV40908 from './SV40908.png'
+import SVA1008 from './SVA1008.png'
+import SVA8008 from './SVA8008.png'
+import SVH1008 from './SVH1008.png'
+import SVH208 from './SVH208.png'
+import SVH8008 from './SVH8008.png'
+import SVL40S4 from './SVL40S4.png'
+export const sparkImages: Record<string, string> = {
+  GPUIDX1: GPUIDX1,
+  NVH10080S: NVH10080S,
+  NVH80080S: NVH80080S,
+  NVA10080P: NVA10080P,
+  NV409024T: NV409024T,
+  NV409048M: NV409048M,
+  NVA80080S: NVA80080S,
+  NVL40S48P: NVL40S48P,
+  NV309024T: NV309024T,
+  NV509032: NV509032,
+  GPUIDX2: GPUIDX2,
+  SVH1008: SVH1008,
+  SVH8008: SVH8008,
+  SVA1008: SVA1008,
+  SVH208: SVH208,
+  SVA8008: SVA8008,
+  SV40908: SV40908,
+  SV4090488: SV4090488,
+  SVL40S4: SVL40S4,
+  SV30908: SV30908,
+}
