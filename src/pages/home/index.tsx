@@ -18,6 +18,8 @@ import { useStore } from '../../store'
 import { go, switchTab, usePage } from '../../utils/navigation'
 import { homeQuotePool } from '../../utils/domain'
 import { theme } from '../../constants/theme'
+import { marketApiEnabled } from '../../services/api'
+import { RemoteLatest } from '../../components/remote-market'
 
 export default function Home() {
   usePage(0)
@@ -106,7 +108,7 @@ export default function Home() {
           ))}
         </Card>
         <Section title='最新信息' more='更多' onMore={() => void switchTab(3)} />
-        <Swiper
+        {marketApiEnabled ? <RemoteLatest /> : <Swiper
           className='latest-swiper'
           autoplay
           circular
@@ -119,8 +121,8 @@ export default function Home() {
               <ListingCard item={item} horizontal />
             </SwiperItem>
           ))}
-        </Swiper>
-        <DemoNote />
+        </Swiper>}
+        <DemoNote>{marketApiEnabled ? '行情与资讯为演示数据' : '演示数据 · 不代表实时行情'}</DemoNote>
       </LoadState>
       <FloatSettle />
       {assetOpen && <AssetSheet onClose={() => setAssetOpen(false)} />}

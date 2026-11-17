@@ -7,8 +7,13 @@ import { marketService } from '../../services/market'
 import { useStore } from '../../store'
 import { localDate, validateDraft } from '../../utils/domain'
 import { go, toast, usePage } from '../../utils/navigation'
+import { marketApiEnabled } from '../../services/api'
+import { RemotePublish } from '../../components/remote-publish'
 
 export default function Publish() {
+  return marketApiEnabled ? <RemotePublish /> : <DemoPublish />
+}
+function DemoPublish() {
   usePage(2)
   const draft = useStore((s) => s.draft),
     setDraft = useStore((s) => s.setDraft),

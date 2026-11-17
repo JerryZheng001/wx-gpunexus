@@ -13,6 +13,7 @@ import type {
   Shop,
 } from '../types'
 import { emptyDraft, restoreDraft } from '../utils/domain'
+import type { ApiListingType } from '../services/listing-api'
 
 interface Persisted {
   favorites: RecordEntry[]
@@ -25,6 +26,8 @@ interface Persisted {
   feedbacks: Feedback[]
 }
 interface Store extends Persisted {
+  remoteEdit: { type: ApiListingType; id: number } | null
+  setRemoteEdit: (value: { type: ApiListingType; id: number } | null) => void
   activeTab: number
   searchKeyword: string
   catalog: Listing[]
@@ -36,8 +39,8 @@ interface Store extends Persisted {
   load: () => Promise<void>
   setTab: (index: number) => void
   setSearch: (value: string) => void
-  toggleFavorite: (kind: RecordEntry['kind'], id: string) => void
-  visit: (id: string) => void
+  toggleFavorite: (kind: RecordEntry['kind'], id: string, snapshot?: RecordEntry['snapshot']) => void
+  visit: (id: string, snapshot?: RecordEntry['snapshot']) => void
   removeHistory: (id: string) => void
   toggleQuote: (id: string) => void
   toggleShop: (id: string) => void
@@ -93,6 +96,8 @@ function recordSnapshot(state: Store, kind: RecordEntry['kind'], id: string): Re
 let loading: Promise<void> | undefined
 export const useStore = create<Store>((set, get) => ({
   ...read(),
+  remoteEdit: null,
+  setRemoteEdit: (remoteEdit) => set({ remoteEdit }),
   activeTab: 0,
   searchKeyword: '',
   catalog: [],
@@ -124,16 +129,16 @@ export const useStore = create<Store>((set, get) => ({
   },
   setTab: (activeTab) => set({ activeTab }),
   setSearch: (searchKeyword) => set({ searchKeyword }),
-  toggleFavorite: (kind, id) =>
+  toggleFavorite: (kind, id, snapshot) =>
     set((state) => ({
       favorites: state.favorites.some((item) => item.kind === kind && item.id === id)
         ? state.favorites.filter((item) => !(item.kind === kind && item.id === id))
-        : [{ kind, id, date: new Date().toLocaleDateString('sv-SE'), snapshot: recordSnapshot(state, kind, id) }, ...state.favorites],
+        : [{ kind, id, date: new Date().toLocaleDateString('sv-SE'), snapshot: snapshot || recordSnapshot(state, kind, id) }, ...state.favorites],
     })),
-  visit: (id) =>
+  visit: (id, snapshot) =>
     set((state) => ({
       history: [
-        { id, kind: 'goods' as const, date: new Date().toLocaleDateString('sv-SE'), snapshot: recordSnapshot(state, 'goods', id) },
+        { id, kind: 'goods' as const, date: new Date().toLocaleDateString('sv-SE'), snapshot: snapshot || recordSnapshot(state, 'goods', id) },
         ...state.history.filter((item) => item.id !== id),
       ].slice(0, 100),
     })),

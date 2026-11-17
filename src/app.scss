@@ -1,4 +1,35 @@
 @use './styles/theme' as *;
+.favorite-record {
+  min-width: 0;
+}
+.favorite-record .favorite-unavailable {
+  margin: 0;
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+}
+.favorite-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 4px;
+  font-size: 20px;
+}
+.favorite-meta .favorite-remove {
+  width: auto;
+  margin: 0;
+  padding: 4px 12px;
+  font-size: 22px;
+  line-height: 1.8;
+  color: $accent;
+  background: $card;
+  border: 1px solid $line;
+  border-radius: 12px;
+}
 page,
 body {
   background: $bg;

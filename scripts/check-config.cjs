@@ -4,6 +4,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 const ts = require('typescript')
 const Module = require('node:module')
+require('tsx/cjs')
 const configPath = path.resolve('config/index.ts')
 const compiled = ts.transpileModule(fs.readFileSync(configPath, 'utf8'), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },

@@ -6,9 +6,16 @@ import { useStore } from '../../store'
 import type { RecordEntry } from '../../types'
 import { money } from '../../utils/domain'
 import { go, switchTab, usePage } from '../../utils/navigation'
+import { parseMarketKey } from '../../services/listing-api'
+import { marketApiEnabled } from '../../services/api'
+import { RemoteFavorites } from '../../components/remote-favorites'
 
 type FavoriteFilter = 'all' | 'article' | 'goods' | 'quote'
 export default function Records() {
+  const isHistory = useRouter().params.mode === 'history'
+  return marketApiEnabled && !isHistory ? <RemoteFavorites /> : <LocalRecords />
+}
+function LocalRecords() {
   usePage()
   const isHistory = useRouter().params.mode === 'history'
   const catalog = useStore((s) => s.catalog), mine = useStore((s) => s.mine),
@@ -25,6 +32,15 @@ export default function Records() {
   const count = entries.length + quoteItems.length
   const days = [...new Set(goods.map((entry) => entry.date))].sort().reverse()
   const renderRecord = (entry: RecordEntry) => {
+    if (entry.kind === 'goods' && parseMarketKey(entry.id)) return <View className='record-wrap' key={`${entry.kind}-${entry.id}`}>
+      <View className='unavailable-record' onClick={() => void go('goods', { id: entry.id })}>
+        <Text className='unavailable-icon'>📦</Text>
+        <Text className='strong block'>{entry.snapshot?.title || '市场信息'}</Text>
+        {entry.snapshot?.priceLabel && <Text className='muted'>{entry.snapshot.priceLabel}</Text>}
+        <Text className='field-hint'>查看最新信息 ›</Text>
+      </View>
+      {manage && <Text className='record-remove' onClick={() => isHistory ? removeHistory(entry.id) : toggle(entry.kind, entry.id)}>×</Text>}
+    </View>
     const listing = [...catalog, ...mine].find((item) => item.id === entry.id)
     const article = articles.find((item) => item.id === entry.id)
     const unavailable = entry.kind === 'goods' ? !listing || listing.status === 'off' : !article

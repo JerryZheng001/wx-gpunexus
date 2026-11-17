@@ -15,7 +15,14 @@ import {
 import { useStore } from '../../store'
 import { isServer, listingPrice, listingTypes, money, statuses } from '../../utils/domain'
 import { go, toast, usePage } from '../../utils/navigation'
+import { marketKey, parseMarketKey } from '../../services/listing-api'
+import { RemoteGoods } from '../../components/remote-goods'
 export default function Goods() {
+  const { id } = useRouter().params
+  const remote = parseMarketKey(id)
+  return remote ? <RemoteGoods recordKey={marketKey(remote.type, remote.id)} /> : <DemoGoods />
+}
+function DemoGoods() {
   const { id } = useRouter().params
   const catalog = useStore((s) => s.catalog),
     mine = useStore((s) => s.mine),

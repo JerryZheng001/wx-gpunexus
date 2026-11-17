@@ -17,7 +17,12 @@ import { Picker } from '@tarojs/components'
 import type { ListingType } from '../../types'
 import { filterListings } from '../../utils/domain'
 import { conditions as conditionOptions } from '../../constants/publish'
+import { marketApiEnabled } from '../../services/api'
+import { RemoteMall } from '../../components/remote-market'
 export default function Mall() {
+  return marketApiEnabled ? <RemoteMall /> : <DemoMall />
+}
+function DemoMall() {
   usePage(3)
   const catalog = useStore((s) => s.catalog),
     keyword = useStore((s) => s.searchKeyword),

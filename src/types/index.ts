@@ -93,7 +93,7 @@ export interface RecordEntry {
   id: string
   kind: 'goods' | 'article'
   date: string
-  snapshot?: { title: string; emoji?: string; price?: number; unit?: string }
+  snapshot?: { title: string; emoji?: string; price?: number; unit?: string; priceLabel?: string }
 }
 export interface MerchantApplication {
   name: string

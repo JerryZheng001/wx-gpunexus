@@ -381,20 +381,28 @@ export function Upload({
   onChange,
   max = 9,
   persist = false,
+  upload,
+  onUploadingChange,
 }: {
   images: string[]
   onChange: (images: string[]) => void
   max?: number
   persist?: boolean
+  upload?: (path: string) => Promise<string>
+  onUploadingChange?: (value: boolean) => void
 }) {
+  const [uploading, setUploading] = useState(false)
   const choose = async () => {
+    if (uploading) return
+    setUploading(true)
+    onUploadingChange?.(true)
     try {
       const result = await Taro.chooseImage({
         count: max - images.length,
         sizeType: ['compressed'],
         sourceType: ['album', 'camera'],
       })
-      const paths = persist
+      const paths = upload ? await Promise.all(result.tempFilePaths.map(upload)) : persist
         ? await Promise.all(
             result.tempFilePaths.map(async (tempFilePath) => {
               if (process.env.TARO_ENV === 'h5') {
@@ -415,7 +423,10 @@ export function Upload({
       onChange([...images, ...paths].slice(0, max))
     } catch (error) {
       if (!String((error as { errMsg?: string }).errMsg || '').includes('cancel'))
-        void toast('暂时无法保存图片，请检查本机空间后重试')
+        void toast(upload && error instanceof Error ? error.message : '暂时无法保存图片，请检查本机空间后重试')
+    } finally {
+      setUploading(false)
+      onUploadingChange?.(false)
     }
   }
   return (
@@ -429,7 +440,7 @@ export function Upload({
           />
           <Text
             className='upload-remove'
-            onClick={() => onChange(images.filter((_, index) => index !== i))}
+            onClick={() => { if (!uploading) onChange(images.filter((_, index) => index !== i)) }}
           >
             ×
           </Text>
@@ -438,7 +449,7 @@ export function Upload({
       {images.length < max && (
         <View className='upload-add' onClick={() => void choose()}>
           <Text className='upload-plus'>＋</Text>
-          <Text>添加图片</Text>
+          <Text>{uploading ? '上传中…' : '添加图片'}</Text>
           <Text>
             {images.length}/{max}
           </Text>
@@ -557,12 +568,14 @@ export function AssetSheet({ onClose }: { onClose: () => void }) {
 }
 export function BottomActions({
   favorite,
+  favoriteBusy = false,
   onFavorite,
   onContact,
   share = true,
   label = '联系平台对接',
 }: {
   favorite?: boolean
+  favoriteBusy?: boolean
   onFavorite?: () => void
   onContact?: () => void
   share?: boolean
@@ -571,9 +584,9 @@ export function BottomActions({
   return (
     <View className='bottom-actions'>
       {onFavorite && (
-        <View className={`action-icon ${favorite ? 'active' : ''}`} onClick={onFavorite}>
+        <View className={`action-icon ${favorite ? 'active' : ''}`} onClick={favoriteBusy ? undefined : onFavorite}>
           <Text>{favorite ? '♥' : '♡'}</Text>
-          <Text>{favorite ? '已收藏' : '收藏'}</Text>
+          <Text>{favoriteBusy ? '处理中…' : favorite ? '已收藏' : '收藏'}</Text>
         </View>
       )}
       {share && (

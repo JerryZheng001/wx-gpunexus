@@ -1,5 +1,6 @@
 import { Text, View } from '@tarojs/components'
-import { useState } from 'react'
+import { useState, useSyncExternalStore } from 'react'
+import { useDidShow } from '@tarojs/taro'
 import {
   AssetSheet,
   Card,
@@ -11,9 +12,12 @@ import {
 } from '../../components/ui'
 import { useStore } from '../../store'
 import { go, usePage } from '../../utils/navigation'
+import { listingFavorites, marketApiEnabled } from '../../services/api'
 
 export default function Me() {
   usePage(4)
+  const remoteFavorites = useSyncExternalStore(listingFavorites.subscribe, listingFavorites.getSnapshot)
+  useDidShow(() => { if (marketApiEnabled) void listingFavorites.refreshTotal() })
   const mine = useStore((s) => s.mine),
     favorites = useStore((s) => s.favorites),
     followed = useStore((s) => s.followedQuotes),
@@ -31,7 +35,7 @@ export default function Me() {
     {
       icon: '⭐',
       label: '我的收藏',
-      hint: '本机保存',
+      hint: marketApiEnabled ? remoteFavorites.totalError ? '暂未同步' : '账号同步' : '本机保存',
       action: () => void go('records', { mode: 'favorites' }),
     },
     {
@@ -62,7 +66,7 @@ export default function Me() {
         {[
           { value: mine.length, label: '我的发布', action: () => void go('manage') },
           {
-            value: favorites.length + followed.length,
+            value: marketApiEnabled ? remoteFavorites.total ?? '—' : favorites.length + followed.length,
             label: '收藏',
             action: () => void go('records', { mode: 'favorites' }),
           },
@@ -127,7 +131,7 @@ export default function Me() {
       <View className='notice page-notice'>
         平台不介入资金往来，不代收货款。交易前请自行核验设备与对方身份。
       </View>
-      <DemoNote>当前为演示用户，数据仅保存在本机</DemoNote>
+      <DemoNote>{marketApiEnabled ? '市场收藏随账号同步，浏览足迹保存在本机' : '当前为演示用户，数据仅保存在本机'}</DemoNote>
       {assetOpen && <AssetSheet onClose={() => setAssetOpen(false)} />}
       {contact.visible && <ContactSheet onClose={contact.close} />}
     </Page>

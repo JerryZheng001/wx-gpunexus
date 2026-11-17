@@ -6,7 +6,12 @@ import { useStore } from '../../store'
 import type { Listing, ListingStatus, ListingType } from '../../types'
 import { draftFromListing, filterListings, listingPrice, listingTypes, money, statuses } from '../../utils/domain'
 import { go, switchTab, toast, usePage } from '../../utils/navigation'
+import { marketApiEnabled } from '../../services/api'
+import { RemoteManage } from '../../components/remote-manage'
 export default function Manage() {
+  return marketApiEnabled ? <RemoteManage /> : <DemoManage />
+}
+function DemoManage() {
   usePage()
   const mine = useStore((s) => s.mine),
     setStatus = useStore((s) => s.setListingStatus),

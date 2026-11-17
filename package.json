@@ -12,6 +12,7 @@
     "test": "node --import tsx --test tests/*.test.ts",
     "check:config": "node scripts/check-config.cjs",
     "check:weapp": "node scripts/check-weapp.cjs",
+    "check:api": "node --import tsx scripts/check-market-api.ts",
     "preview:h5": "node scripts/preview-server.cjs",
     "prebuild:weapp": "npm run check:config",
     "postbuild:weapp": "npm run check:weapp",
