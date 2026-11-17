@@ -15,6 +15,12 @@ for (const page of app.pages) {
 }
 
 const component = JSON.parse(read('custom-tab-bar/index.json'))
+for (const page of ['goods', 'mall']) {
+  // Taro extracts share flags into the Page registration, not the native JSON.
+  const script = read(`pages/${page}/index.js`)
+  assert.match(script, /enableShareAppMessage\s*[:=]\s*(?:true|!0)/, `${page} must enable friend sharing`)
+  assert.match(script, /enableShareTimeline\s*[:=]\s*(?:true|!0)/, `${page} must enable timeline sharing`)
+}
 assert.equal(component.component, true)
 const styles = read('custom-tab-bar/index.wxss')
 assert.match(styles, /\.custom-tabbar\s*\{[^}]*display\s*:\s*flex\b/, 'TabBar must own its layout styles')

@@ -1,5 +1,5 @@
 import { Button, Image, Picker, Swiper, SwiperItem, Text, View } from '@tarojs/components'
-import { useDidShow, useReachBottom } from '@tarojs/taro'
+import { useDidShow, useReachBottom, useRouter } from '@tarojs/taro'
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { listingApi } from '../services/api'
 import { createMarketFeed } from '../services/market-feed'
@@ -8,12 +8,14 @@ import { apiConditionLabels, apiTypeLabels, marketKey, marketPrice, marketUnit,
 import { useStore } from '../store'
 import { go, usePage } from '../utils/navigation'
 import { Empty, FloatSettle, Page, Search, Tabs, Tag } from './ui'
+import { listingShare, marketShare, readMarketShareFilters } from '../utils/market-share'
+import { MarketShareButton } from './market-share-button'
 
 // Ephemeral public cards help display the list price when opening a detail page.
 // Prices are still strings and the cache is never a substitute for a detail fetch.
 const cardCache = new Map<string, MarketCard>()
 export const cachedMarketCard = (key: string) => cardCache.get(key)
-export function RemoteListingCard({ item, horizontal = false }: { item: MarketCard; horizontal?: boolean }) {
+export function RemoteListingCard({ item, horizontal = false, shareable = false }: { item: MarketCard; horizontal?: boolean; shareable?: boolean }) {
   const key = marketKey(item.type, item.id)
   return <View className={`listing-card ${horizontal ? 'horizontal' : ''}`} onClick={() => {
     if (cardCache.size >= 200) cardCache.delete(cardCache.keys().next().value!)
@@ -25,9 +27,12 @@ export function RemoteListingCard({ item, horizontal = false }: { item: MarketCa
         : <Text>{item.type === 'demand' ? '📢' : '📦'}</Text>}
     </View>
     <View className='listing-body'>
-      <View className='row gap'>
-        <Tag color={item.type === 'sale' ? 'orange' : item.type === 'lease' ? 'blue' : 'green'}>{apiTypeLabels[item.type]}</Tag>
-        {item.demandMode && <Tag>{item.demandMode === 'lease' ? '求租' : item.demandMode === 'purchase' ? '求购' : item.demandMode}</Tag>}
+      <View className='listing-heading'>
+        <View className='row gap'>
+          <Tag color={item.type === 'sale' ? 'orange' : item.type === 'lease' ? 'blue' : 'green'}>{apiTypeLabels[item.type]}</Tag>
+          {item.demandMode && <Tag>{item.demandMode === 'lease' ? '求租' : item.demandMode === 'purchase' ? '求购' : item.demandMode}</Tag>}
+        </View>
+        {shareable && <MarketShareButton share={listingShare(item.type, item.id, item, item)} compact />}
       </View>
       <Text className='listing-name'>{item.title}</Text>
       <Text className='listing-extra'>{[item.category, item.gpuModel].filter(Boolean).join(' · ')}</Text>
@@ -39,12 +44,21 @@ export function RemoteListingCard({ item, horizontal = false }: { item: MarketCa
 }
 
 export function RemoteMall() {
-  usePage(3)
+  const params = useRouter().params
+  const initial = useMemo(() => readMarketShareFilters(params.market), [params.market])
   const keyword = useStore((state) => state.searchKeyword)
   const setKeyword = useStore((state) => state.setSearch)
-  const [type, setType] = useState<ApiListingType | 'all'>('all')
-  const [condition, setCondition] = useState<ApiCondition | ''>('')
-  const [sort, setSort] = useState<'latest' | 'priceAsc' | 'priceDesc'>('latest')
+  const [type, setType] = useState<ApiListingType | 'all'>(initial.type || 'all')
+  const [condition, setCondition] = useState<ApiCondition | ''>(initial.condition || '')
+  const [sort, setSort] = useState<'latest' | 'priceAsc' | 'priceDesc'>(initial.sort === 'price' ? initial.order === 'asc' ? 'priceAsc' : 'priceDesc' : 'latest')
+  const share = marketShare({ keyword, type: type === 'all' ? undefined : type, condition: condition || undefined,
+    sort: sort === 'latest' ? 'published_at' : 'price', order: sort === 'priceAsc' ? 'asc' : 'desc' })
+  usePage(3, share)
+  useEffect(() => {
+    if (params.market === undefined) return
+    setKeyword(initial.keyword || ''); setType(initial.type || 'all'); setCondition(initial.condition || '')
+    setSort(initial.sort === 'price' ? initial.order === 'asc' ? 'priceAsc' : 'priceDesc' : 'latest')
+  }, [initial, params.market, setKeyword])
   const feed = useMemo(() => createMarketFeed(listingApi.getMarket), [])
   const state = useSyncExternalStore(feed.subscribe, feed.getSnapshot)
   useEffect(() => {
@@ -80,8 +94,11 @@ export function RemoteMall() {
         void feed.refresh()
       }}>刷新</Text>
     </View>
-    {state.page > 0 && <View className='results-count'>共 {state.total} 条信息{keyword && <Text> · “{keyword}”</Text>}</View>}
-    <View className='goods-grid'>{state.items.map((card) => <RemoteListingCard key={marketKey(card.type, card.id)} item={card} />)}</View>
+    <View className='market-results-row'>
+      <View className='results-count'>{state.page > 0 ? <>共 {state.total} 条信息{keyword && <Text> · “{keyword}”</Text>}</> : '供需信息'}</View>
+      <MarketShareButton share={share} />
+    </View>
+    <View className='goods-grid'>{state.items.map((card) => <RemoteListingCard key={marketKey(card.type, card.id)} item={card} shareable />)}</View>
     {state.error ? <Empty title='市场信息加载失败' description={state.error} action='重试' onAction={() => void feed.retry()} />
       : state.loading || state.page === 0 ? <View className='loading'>正在加载…</View>
         : state.items.length === 0 ? <Empty title='没有找到相关信息' description='试试其他型号，或调整筛选条件' action='重置筛选'

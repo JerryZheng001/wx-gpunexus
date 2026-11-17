@@ -19,11 +19,12 @@ import { filterListings } from '../../utils/domain'
 import { conditions as conditionOptions } from '../../constants/publish'
 import { marketApiEnabled } from '../../services/api'
 import { RemoteMall } from '../../components/remote-market'
+import { marketShare } from '../../utils/market-share'
 export default function Mall() {
   return marketApiEnabled ? <RemoteMall /> : <DemoMall />
 }
 function DemoMall() {
-  usePage(3)
+  usePage(3, marketShare())
   const catalog = useStore((s) => s.catalog),
     keyword = useStore((s) => s.searchKeyword),
     setKeyword = useStore((s) => s.setSearch)

@@ -5,7 +5,8 @@ import { sparkImages } from '../assets/sparks'
 import { useStore } from '../store'
 import type { Article, Listing, Quote } from '../types'
 import { isServer, listingPrice, listingTypes, money, percent } from '../utils/domain'
-import { back, go, toast } from '../utils/navigation'
+import { back, copyShareLink, go, toast } from '../utils/navigation'
+import type { PageShare } from '../utils/market-share'
 import { assetAssessmentUrl } from '../constants/product'
 import PlatformTabBar from './platform-tab-bar'
 
@@ -572,6 +573,7 @@ export function BottomActions({
   onFavorite,
   onContact,
   share = true,
+  shareData,
   label = '联系平台对接',
 }: {
   favorite?: boolean
@@ -579,6 +581,7 @@ export function BottomActions({
   onFavorite?: () => void
   onContact?: () => void
   share?: boolean
+  shareData?: PageShare
   label?: string
 }) {
   return (
@@ -594,7 +597,10 @@ export function BottomActions({
           className='action-icon share-button'
           openType='share'
           onClick={() => {
-            if (process.env.TARO_ENV === 'h5') void toast('请在微信小程序中分享')
+            if (process.env.TARO_ENV === 'h5') {
+              if (shareData) void copyShareLink(shareData)
+              else void toast('请在微信小程序中分享')
+            }
           }}
         >
           <Text className='wechat'>↗</Text>

@@ -511,6 +511,33 @@ button[disabled] {
   justify-content: space-between;
   margin-top: 14px;
 }
+.listing-heading,
+.market-results-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.market-results-row {
+  margin: 18px 28px;
+}
+.market-results-row .results-count {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+}
+.listing-heading .market-card-share,
+.market-results-row .market-share-button {
+  width: auto;
+  flex-shrink: 0;
+  margin: 0;
+  padding: 4px 8px;
+  font-size: 21px;
+  line-height: 1.6;
+  border-radius: 10px;
+  color: $accent;
+  background: $card;
+}
 .listing-views {
   color: $sub;
   font-size: 18px;

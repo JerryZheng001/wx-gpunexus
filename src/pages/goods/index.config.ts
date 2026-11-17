@@ -1,1 +1,1 @@
-export default definePageConfig({ enableShareAppMessage: true })
+export default definePageConfig({ enableShareAppMessage: true, enableShareTimeline: true })

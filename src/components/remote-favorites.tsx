@@ -1,12 +1,12 @@
 import { Button, Text, View } from '@tarojs/components'
 import { useDidShow, useReachBottom } from '@tarojs/taro'
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { listingFavorites } from '../services/api'
 import { favoriteKey, listingFavoriteTarget, type ListingFavorite } from '../services/favorites-api'
 import { apiTypeLabels, type ApiListingType } from '../services/listing-api'
 import { switchTab, toast, usePage } from '../utils/navigation'
 import { RemoteListingCard } from './remote-market'
-import { Card, Empty, Page, Tag } from './ui'
+import { Card, Empty, Page, Search, Tag } from './ui'
 
 export function useListingFavorite(type: ApiListingType, id: number) {
   const target = useMemo(() => listingFavoriteTarget(type, String(id)), [type, id])
@@ -39,7 +39,21 @@ export function RemoteFavorites() {
   usePage()
   const state = useSyncExternalStore(listingFavorites.subscribe, listingFavorites.getSnapshot)
   const [manage, setManage] = useState(false)
-  useDidShow(() => { void listingFavorites.refresh() })
+  const [keyword, setKeyword] = useState('')
+  const timer = useRef<ReturnType<typeof setTimeout>>()
+  const search = () => {
+    clearTimeout(timer.current)
+    listingFavorites.setSearch(keyword)
+    void listingFavorites.refresh()
+  }
+  useDidShow(search)
+  useEffect(() => () => { clearTimeout(timer.current) }, [])
+  const changeKeyword = (value: string) => {
+    clearTimeout(timer.current)
+    setKeyword(value); setManage(false)
+    listingFavorites.setSearch(value)
+    timer.current = setTimeout(() => void listingFavorites.refresh(), 250)
+  }
   useReachBottom(() => { if (!state.error) void listingFavorites.next() })
   const remove = (item: ListingFavorite) => {
     void listingFavorites.setFavorite(item, false).then((next) => {
@@ -47,10 +61,13 @@ export function RemoteFavorites() {
     }).catch((reason: unknown) => void toast(reason instanceof Error ? reason.message : '取消收藏失败，请重试'))
   }
   return <Page title='我的收藏' isBack>
+    <Search value={keyword} onChange={changeKeyword} onSearch={search} button placeholder='搜索收藏的商品名称 / 型号 / 分类' />
     <View className='records-top'>
-      <Text>{state.total === undefined ? '市场收藏' : `共 ${state.total} 条`}</Text>
+      <Text>{state.keyword ? state.error ? '搜索未完成' : state.loading || state.page === 0 ? '正在搜索收藏…'
+        : `找到 ${state.items.length} 条收藏`
+        : state.total === undefined ? '市场收藏' : `共 ${state.total} 条`}</Text>
       <View className='row gap'>
-        <Text className='muted' onClick={() => void listingFavorites.refresh()}>刷新</Text>
+        <Text className='muted' onClick={search}>刷新</Text>
         {state.items.length > 0 && <Text className='orange-text' onClick={() => setManage(!manage)}>{manage ? '完成' : '管理'}</Text>}
       </View>
     </View>
@@ -73,10 +90,12 @@ export function RemoteFavorites() {
       </View>)}
     </View>
     {state.error ? <Empty title='收藏加载失败' description={state.error} action='重试' onAction={() => void listingFavorites.retry()} />
-      : state.loading ? <View className='loading'>正在加载收藏…</View>
-        : state.page > 0 && !state.items.length ? <Empty title='还没有收藏的市场信息'
-          description='在商品详情页收藏感兴趣的出售、出租或需求信息' action='去市场看看' onAction={() => void switchTab(3)} />
+      : state.loading || state.page === 0 ? <View className='loading'>{state.keyword ? '正在搜索收藏…' : '正在加载收藏…'}</View>
+        : !state.items.length ? state.keyword ? <Empty title='没有找到匹配的收藏'
+          description='试试其他商品名称、型号或分类' action='清空搜索' onAction={() => changeKeyword('')} />
+          : <Empty title='还没有收藏的市场信息'
+            description='在商品详情页收藏感兴趣的出售、出租或需求信息' action='去市场看看' onAction={() => void switchTab(3)} />
           : state.hasMore ? <View className='page-gutter'><Button className='button ghost full' onClick={() => void listingFavorites.next()}>加载更多</Button></View>
-            : state.items.length > 0 && <View className='results-count'>已显示全部收藏</View>}
+            : state.items.length > 0 && <View className='results-count'>{state.keyword ? '已显示全部搜索结果' : '已显示全部收藏'}</View>}
   </Page>
 }

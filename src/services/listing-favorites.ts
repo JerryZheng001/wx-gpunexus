@@ -1,6 +1,8 @@
 import { favoriteKey, type ListingFavorite, type ListingFavoriteTarget, type createFavoritesApi } from './favorites-api'
+import { apiTypeLabels } from './listing-api'
 
 interface FavoritesState {
+  keyword: string
   items: ListingFavorite[]
   statuses: Record<string, boolean>
   pending: string[]
@@ -11,7 +13,7 @@ interface FavoritesState {
   error: string
   totalError: string
 }
-const empty = (): FavoritesState => ({ items: [], statuses: {}, pending: [], total: undefined,
+const empty = (): FavoritesState => ({ keyword: '', items: [], statuses: {}, pending: [], total: undefined,
   page: 0, hasMore: false, loading: false, error: '', totalError: '' })
 
 // Account data lives only in memory. Late responses from a previous account or
@@ -36,17 +38,32 @@ export function createListingFavorites(api: ReturnType<typeof createFavoritesApi
     syncScope()
     if (append && (state.loading || !state.hasMore)) return
     const request = ++generation, account = epoch, version = revision, page = append ? state.page + 1 : 1
+    const keyword = state.keyword.toLowerCase(), size = keyword ? 30 : 20
     appendFailed = append
     update({ loading: true, error: '', ...(!append ? { items: [], page: 0, hasMore: false } : {}) })
     try {
-      const result = await api.list(page, 20)
+      let result = await api.list(page, size)
       if (!current(account) || request !== generation || version !== revision) return
-      const items = [...new Map((append ? [...state.items, ...result.items] : result.items)
+      const fetched = [...result.items]
+      // Favorites accepts only type/page/size. Search all documented pages,
+      // never send an unsupported keyword or search the public market instead.
+      while (keyword && result.page * result.size < result.total) {
+        result = await api.list(result.page + 1, size)
+        if (!current(account) || request !== generation || version !== revision) return
+        fetched.push(...result.items)
+      }
+      const matches = keyword ? fetched.filter((item) => {
+        const card = item.content
+        return [card?.title, card?.gpuModel, card?.category, card?.summary, apiTypeLabels[item.biz],
+          item.biz, item.targetId, `${item.biz}-${item.targetId}`, item.available ? '' : '信息已失效']
+          .some((value) => value?.toLowerCase().includes(keyword))
+      }) : fetched
+      const items = [...new Map((append ? [...state.items, ...matches] : matches)
         .map((item) => [favoriteKey(item), item])).values()]
       const statuses = { ...state.statuses }
-      result.items.forEach((item) => { statuses[favoriteKey(item)] = true })
-      update({ items, statuses, total: result.total, totalError: '', page,
-        hasMore: page * result.size < result.total })
+      fetched.forEach((item) => { statuses[favoriteKey(item)] = true })
+      update({ items, statuses, total: result.total, totalError: '', page: result.page,
+        hasMore: !keyword && result.page * result.size < result.total })
     } catch (error) {
       if (current(account) && request === generation) update({ error: error instanceof Error ? error.message : '收藏加载失败' })
     } finally {
@@ -92,6 +109,13 @@ export function createListingFavorites(api: ReturnType<typeof createFavoritesApi
     getSnapshot: () => state,
     subscribe: (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener) } },
     syncScope, lookup, setFavorite,
+    setSearch(keyword: string) {
+      syncScope()
+      const trimmed = keyword.trim()
+      if (trimmed === state.keyword) return
+      generation++
+      update({ keyword: trimmed, items: [], page: 0, hasMore: false, loading: false, error: '' })
+    },
     refresh: () => load(false), next: () => load(true), retry: () => load(appendFailed),
     async refreshTotal() {
       syncScope()

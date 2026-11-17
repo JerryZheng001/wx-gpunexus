@@ -9,6 +9,7 @@ import { usePage } from '../utils/navigation'
 import { cachedMarketCard } from './remote-market'
 import { BottomActions, Card, ContactSheet, Empty, Page, Tag, useContact } from './ui'
 import { useListingFavorite } from './remote-favorites'
+import { listingShare } from '../utils/market-share'
 
 export function RemoteGoods({ recordKey }: { recordKey: string }) {
   const identity = parseMarketKey(recordKey)!
@@ -22,8 +23,6 @@ export function RemoteGoods({ recordKey }: { recordKey: string }) {
   const favorite = useListingFavorite(identity.type, identity.id)
   const contact = useContact()
   const reference = `${identity.type}-${identity.id}`
-  usePage(undefined, { title: detail?.title || cached?.title || '算力市供需信息',
-    path: `/pages/goods/index?id=${encodeURIComponent(recordKey)}&type=${identity.type}` })
   useEffect(() => {
     let active = true
     setDetail(undefined)
@@ -50,6 +49,8 @@ export function RemoteGoods({ recordKey }: { recordKey: string }) {
     id: identity.id, type: identity.type, title: detail.title, category: detail.category, gpuModel: detail.gpuModel,
     images: detail.images, summary: '', budgetMin: null, budgetMax: null, demandMode: '', ...detail.quotation,
   } : cached
+  const share = listingShare(identity.type, identity.id, error ? undefined : detail || cached, error ? undefined : priceCard)
+  usePage(undefined, share)
   return <Page title='信息详情' isBack>
     {loading ? <View className='loading'>正在加载详细信息…</View>
       : error ? <Empty title={missing ? '信息已下架或不存在' : '详细信息加载失败'} description={missing ? undefined : error}
@@ -89,7 +90,7 @@ export function RemoteGoods({ recordKey }: { recordKey: string }) {
           </View></Card>
           {favorite.error && <View className='notice page-notice'>收藏状态读取失败：{favorite.error}，点击收藏可重试。</View>}
           <BottomActions favorite={favorite.favorite} onFavorite={favorite.toggle}
-            favoriteBusy={favorite.checking || favorite.pending} onContact={contact.open} />
+            favoriteBusy={favorite.checking || favorite.pending} onContact={contact.open} shareData={share} />
           {contact.visible && <ContactSheet reference={reference} onClose={contact.close} />}
         </>}
   </Page>

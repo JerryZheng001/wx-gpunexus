@@ -167,3 +167,92 @@ test('收藏读取失败保留错误可重试，数量失败不伪装为零收�
   await assert.rejects(controller.lookup(target), /请先登录/)
   assert.equal(controller.getSnapshot().statuses[favoriteKey(target)], undefined)
 })
+
+const searchable = (id: string, title: string, fields = {}): ListingFavorite => ({ ...item(id), available: true,
+  content: { id: Number(id), type: 'sale', title, images: [], category: 'GPU服务器', gpuModel: 'H100', summary: '支持验货',
+    priceMin: '12000', priceMax: null, budgetMin: null, budgetMax: null, currency: 'CNY', priceUnit: '', demandMode: '', ...fields } })
+
+test('收藏搜索通过文档分页读取全部收藏，跨页匹配标题、型号、分类、描述和失效编号，总数保持账号总量', async () => {
+  const calls: number[][] = []
+  const records = [searchable('1', 'A100', { gpuModel: 'A100' }), searchable('2', ' RTX 4090 ', { gpuModel: '4090' }),
+    searchable('3', '训练服务器', { gpuModel: 'RTX 4090' }), searchable('4', '服务器', { category: 'RTX 4090 单卡' }),
+    searchable('5', '整机', { summary: '内含 RTX 4090' }), item('6')]
+  const controller = createListingFavorites({ add: async () => {}, remove: async () => {},
+    list: async (current = 1, size = 20) => {
+      calls.push([current, size])
+      return page(current === 1 ? records.slice(0, 1) : current === 2 ? records.slice(1, 3) : records.slice(3), 61, current, size)
+    } }, () => 'account')
+  controller.setSearch('  rtx 4090  ')
+  await controller.refresh()
+  assert.deepEqual(calls, [[1, 30], [2, 30], [3, 30]])
+  assert.deepEqual(controller.getSnapshot().items.map((record) => record.targetId), ['2', '3', '4', '5'])
+  assert.equal(controller.getSnapshot().total, 61)
+  assert.equal(controller.getSnapshot().hasMore, false)
+  const count = calls.length
+  await controller.next()
+  assert.equal(calls.length, count)
+  controller.setSearch('sale-6'); await controller.refresh()
+  assert.deepEqual(controller.getSnapshot().items.map((record) => record.targetId), ['6'])
+  controller.setSearch('不存在'); await controller.refresh()
+  assert.equal(controller.getSnapshot().items.length, 0)
+  assert.equal(controller.getSnapshot().error, '')
+  controller.setSearch(' '); await controller.refresh()
+  assert.equal(controller.getSnapshot().keyword, '')
+  assert.deepEqual(calls.at(-1), [1, 20])
+  assert.equal(controller.getSnapshot().hasMore, true)
+})
+
+test('搜索后续分页失败显示错误，重试从第一页重新搜索，不把部分命中当成完整结果', async () => {
+  let fails = true
+  const calls: number[] = []
+  const controller = createListingFavorites({ add: async () => {}, remove: async () => {},
+    list: async (current = 1, size = 20) => {
+      calls.push(current)
+      if (current === 2 && fails) throw new Error('offline')
+      return page([searchable(String(current), 'H100')], 31, current, size)
+    } }, () => 'account')
+  controller.setSearch('h100'); await controller.refresh()
+  assert.equal(controller.getSnapshot().error, 'offline')
+  assert.equal(controller.getSnapshot().items.length, 0)
+  fails = false; await controller.retry()
+  assert.deepEqual(calls, [1, 2, 1, 2])
+  assert.equal(controller.getSnapshot().items.length, 2)
+})
+
+test('切换搜索词即丢弃旧结果，过时搜索不会覆盖新词或清空后的默认分页', async () => {
+  const old = deferred<ListingFavoritesPage>()
+  let calls = 0
+  const controller = createListingFavorites({ add: async () => {}, remove: async () => {},
+    list: async (_current = 1, size = 20) => {
+      calls++
+      return calls === 1 ? old.promise : page([searchable('2', 'A100')], 1, 1, size)
+    } }, () => 'account')
+  controller.setSearch('h100')
+  const first = controller.refresh()
+  controller.setSearch('a100')
+  assert.equal(controller.getSnapshot().loading, false)
+  assert.equal(controller.getSnapshot().items.length, 0)
+  await controller.refresh()
+  old.resolve(page([searchable('1', 'H100')], 31, 1, 30))
+  await first
+  assert.equal(calls, 2)
+  assert.equal(controller.getSnapshot().keyword, 'a100')
+  assert.deepEqual(controller.getSnapshot().items.map((record) => record.targetId), ['2'])
+  controller.setSearch(''); await controller.refresh()
+  assert.equal(controller.getSnapshot().keyword, '')
+  assert.deepEqual(controller.getSnapshot().items.map((record) => record.targetId), ['2'])
+})
+
+test('搜索结果取消收藏后保留关键词并重新搜索，账号总数不变成搜索命中数', async () => {
+  let removed = false
+  const controller = createListingFavorites({ add: async () => {}, remove: async () => { removed = true },
+    list: async (_current = 1, size = 20) => page(removed ? [] : [searchable('5', 'H100')], removed ? 4 : 5, 1, size),
+  }, () => 'account')
+  controller.setSearch('h100'); await controller.refresh()
+  assert.equal(controller.getSnapshot().items.length, 1)
+  assert.equal(await controller.setFavorite(target, false), false)
+  await controller.refresh()
+  assert.equal(controller.getSnapshot().keyword, 'h100')
+  assert.equal(controller.getSnapshot().items.length, 0)
+  assert.equal(controller.getSnapshot().total, 4)
+})
